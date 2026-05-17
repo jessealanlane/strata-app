@@ -202,6 +202,7 @@ export type Action =
   | "VOTE_CAST"
   | "VOTE_CLOSE"
   | "VOTE_REOPEN"
+  | "SCHEDULE_EDIT"
   | "ADMIN_VIEW"
   | "ADMIN_APPROVE_USERS"
   | "ADMIN_MANAGE_LOTS"
@@ -234,6 +235,7 @@ export function can(role: Role | undefined, action: Action): boolean {
   if (action === "VOTE_CAST") return true;
   if (action === "VOTE_CLOSE") return role !== "LOT_OWNER";
   if (action === "VOTE_REOPEN") return role !== "LOT_OWNER";
+  if (action === "SCHEDULE_EDIT") return role !== "LOT_OWNER";
 
   return false;
 }

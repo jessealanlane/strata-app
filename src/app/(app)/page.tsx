@@ -19,6 +19,11 @@ export default function DashboardPage() {
   const [ideaTitle, setIdeaTitle] = useState("");
   const [ideaBody, setIdeaBody] = useState("");
 
+  const [scheduleOpen, setScheduleOpen] = useState<null | "committee" | "agm">(null);
+  const [scheduleWhen, setScheduleWhen] = useState("");
+  const [scheduleLocation, setScheduleLocation] = useState("");
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
   const [bmTitle, setBmTitle] = useState("");
   const [bmBody, setBmBody] = useState("");
   const [bmUrgent, setBmUrgent] = useState(false);
@@ -71,6 +76,26 @@ export default function DashboardPage() {
     return `${mb.toFixed(1)} MB`;
   };
 
+  const isoToLocalInput = (iso?: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return "";
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 16);
+  };
+
+  const openSchedule = (kind: "committee" | "agm") => {
+    setScheduleError(null);
+    setScheduleOpen(kind);
+    if (kind === "committee") {
+      setScheduleWhen(isoToLocalInput(settings.nextCommitteeMeeting?.when));
+      setScheduleLocation(settings.nextCommitteeMeeting?.locationNickname ?? "");
+    } else {
+      setScheduleWhen(isoToLocalInput(settings.nextAgm?.when));
+      setScheduleLocation(settings.nextAgm?.locationNickname ?? "");
+    }
+  };
+
   const dataUrlToBlob = (dataUrl: string): Blob | null => {
     const comma = dataUrl.indexOf(",");
     if (comma === -1) return null;
@@ -105,6 +130,75 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <Modal
+        open={Boolean(scheduleOpen)}
+        onClose={() => {
+          setScheduleOpen(null);
+          setScheduleError(null);
+        }}
+        title={scheduleOpen === "committee" ? "Edit next committee meeting" : "Edit next AGM"}
+        footer={
+          <div className="flex w-full items-center justify-between gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setScheduleOpen(null);
+                setScheduleError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  if (!scheduleOpen) return;
+                  if (scheduleOpen === "committee") actions.admin.setNextCommitteeMeeting("", "");
+                  else actions.admin.setNextAgm("", "");
+                  setScheduleOpen(null);
+                  setScheduleError(null);
+                }}
+              >
+                Clear
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!scheduleOpen) return;
+                  if (scheduleWhen.trim()) {
+                    const parsed = new Date(scheduleWhen);
+                    if (!Number.isFinite(parsed.getTime())) {
+                      setScheduleError("Invalid date/time.");
+                      return;
+                    }
+                  }
+                  if (scheduleOpen === "committee") actions.admin.setNextCommitteeMeeting(scheduleWhen, scheduleLocation);
+                  else actions.admin.setNextAgm(scheduleWhen, scheduleLocation);
+                  setScheduleOpen(null);
+                  setScheduleError(null);
+                }}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <Field label="Date/time">
+            <Input value={scheduleWhen} onChange={(e) => setScheduleWhen(e.target.value)} type="datetime-local" />
+          </Field>
+          <Field label="Location">
+            <Input value={scheduleLocation} onChange={(e) => setScheduleLocation(e.target.value)} placeholder="Example: Meeting Room" />
+          </Field>
+          {scheduleError ? <div className="text-sm font-semibold text-rose-700">{scheduleError}</div> : null}
+          {!can(me.role, "SCHEDULE_EDIT") ? (
+            <div className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700 ring-1 ring-rose-100">
+              Committee permission required.
+            </div>
+          ) : null}
+        </div>
+      </Modal>
+
       <Modal
         open={editOpen}
         onClose={() => {
@@ -205,7 +299,13 @@ export default function DashboardPage() {
           </CardHeader>
           <CardBody className="space-y-3">
             <div className="text-sm font-semibold text-slate-900">{formatDateTime(settings.nextCommitteeMeeting?.when)}</div>
-            <Pill tone="blue">Tap to edit later</Pill>
+            {can(me.role, "SCHEDULE_EDIT") ? (
+              <Button variant="secondary" size="sm" onClick={() => openSchedule("committee")}>
+                Edit
+              </Button>
+            ) : (
+              <Pill tone="blue">Committee only</Pill>
+            )}
           </CardBody>
         </Card>
 
@@ -216,7 +316,13 @@ export default function DashboardPage() {
           </CardHeader>
           <CardBody className="space-y-3">
             <div className="text-sm font-semibold text-slate-900">{formatDateTime(settings.nextAgm?.when)}</div>
-            <Pill tone="blue">Tap to edit later</Pill>
+            {can(me.role, "SCHEDULE_EDIT") ? (
+              <Button variant="secondary" size="sm" onClick={() => openSchedule("agm")}>
+                Edit
+              </Button>
+            ) : (
+              <Pill tone="blue">Committee only</Pill>
+            )}
           </CardBody>
         </Card>
 

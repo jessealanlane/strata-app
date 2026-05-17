@@ -395,6 +395,58 @@ export const actions = {
       const v = Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0;
       setState((prev) => ({ ...prev, settings: { ...prev.settings, autoApprovalThresholdAmount: v } }));
     },
+    setNextCommitteeMeeting: (when: string, locationNickname: string): void => {
+      setState((prev) => {
+        const uid = prev.auth.currentUserId;
+        if (!uid) return prev;
+        const me = prev.users.find((u) => u.id === uid);
+        if (!me || !can(me.role, "SCHEDULE_EDIT")) return prev;
+
+        const nextWhen = when.trim();
+        const nextLoc = locationNickname.trim();
+
+        if (!nextWhen && !nextLoc) {
+          return { ...prev, settings: { ...prev.settings, nextCommitteeMeeting: undefined } };
+        }
+
+        const parsed = new Date(nextWhen);
+        if (!Number.isFinite(parsed.getTime())) return prev;
+
+        return {
+          ...prev,
+          settings: {
+            ...prev.settings,
+            nextCommitteeMeeting: { when: parsed.toISOString(), locationNickname: nextLoc || "—" }
+          }
+        };
+      });
+    },
+    setNextAgm: (when: string, locationNickname: string): void => {
+      setState((prev) => {
+        const uid = prev.auth.currentUserId;
+        if (!uid) return prev;
+        const me = prev.users.find((u) => u.id === uid);
+        if (!me || !can(me.role, "SCHEDULE_EDIT")) return prev;
+
+        const nextWhen = when.trim();
+        const nextLoc = locationNickname.trim();
+
+        if (!nextWhen && !nextLoc) {
+          return { ...prev, settings: { ...prev.settings, nextAgm: undefined } };
+        }
+
+        const parsed = new Date(nextWhen);
+        if (!Number.isFinite(parsed.getTime())) return prev;
+
+        return {
+          ...prev,
+          settings: {
+            ...prev.settings,
+            nextAgm: { when: parsed.toISOString(), locationNickname: nextLoc || "—" }
+          }
+        };
+      });
+    },
     bulkCreateLots: (start: number, end: number): void => {
       const s = Math.max(1, Math.floor(start));
       const e = Math.max(s, Math.floor(end));
