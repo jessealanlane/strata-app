@@ -230,7 +230,7 @@ export default function NewVotePage() {
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold text-slate-900">{a.name}</div>
                     <div className="truncate text-xs text-slate-600">
-                      {a.url ?? [formatBytes(a.size), a.mimeType].filter(Boolean).join(" • ") || "—"}
+                      {a.url ?? ([formatBytes(a.size), a.mimeType].filter(Boolean).join(" • ") || "—")}
                     </div>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}>
