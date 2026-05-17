@@ -273,7 +273,7 @@ export default function VoteDetailPage() {
                   <div key={a.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-3 ring-1 ring-slate-200">
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-slate-900">{name}</div>
-                      <div className="truncate text-xs text-slate-600">{a.url ?? [formatBytes(a.size), a.mimeType].filter(Boolean).join(" • ") || "—"}</div>
+                      <div className="truncate text-xs text-slate-600">{a.url ?? ([formatBytes(a.size), a.mimeType].filter(Boolean).join(" • ") || "—")}</div>
                     </div>
                     {href ? (
                       <div className="flex shrink-0 items-center gap-2">
