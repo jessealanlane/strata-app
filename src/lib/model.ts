@@ -154,6 +154,7 @@ export type Notification = {
 };
 
 export type AppSettings = {
+  buildingTimeZone: string;
   nextCommitteeMeeting?: {
     when: string;
     locationNickname: string;

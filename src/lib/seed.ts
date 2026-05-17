@@ -35,6 +35,7 @@ export function createInitialState(now = new Date()): AppState {
     ],
     ideas: [],
     settings: {
+      buildingTimeZone: "Australia/Brisbane",
       nextCommitteeMeeting: {
         when: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         locationNickname: "Meeting Room"

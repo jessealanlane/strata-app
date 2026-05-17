@@ -67,7 +67,11 @@ function normalizeState(state: AppState): AppState {
       }))
     };
   });
-  return { ...state, bmUpdates };
+  const buildingTimeZone =
+    typeof state.settings?.buildingTimeZone === "string" && state.settings.buildingTimeZone.trim()
+      ? state.settings.buildingTimeZone.trim()
+      : "Australia/Brisbane";
+  return { ...state, bmUpdates, settings: { ...state.settings, buildingTimeZone } };
 }
 
 function loadStateFromLocalStorage(): AppState {
@@ -394,6 +398,17 @@ export const actions = {
     setAutoApprovalThresholdAmount: (amount: number): void => {
       const v = Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 0;
       setState((prev) => ({ ...prev, settings: { ...prev.settings, autoApprovalThresholdAmount: v } }));
+    },
+    setBuildingTimeZone: (timeZone: string): void => {
+      setState((prev) => {
+        const uid = prev.auth.currentUserId;
+        if (!uid) return prev;
+        const me = prev.users.find((u) => u.id === uid);
+        if (!me || !can(me.role, "ADMIN_SETTINGS")) return prev;
+        const next = timeZone.trim();
+        if (!next) return prev;
+        return { ...prev, settings: { ...prev.settings, buildingTimeZone: next } };
+      });
     },
     setNextCommitteeMeeting: (when: string, locationNickname: string): void => {
       setState((prev) => {

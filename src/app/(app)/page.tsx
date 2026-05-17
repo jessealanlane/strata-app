@@ -6,7 +6,7 @@ import { Button, Card, CardBody, CardHeader, CardSubtle, CardTitle, Checkbox, Di
 import { actions, useAppStore, useCurrentUser } from "@/lib/store";
 import type { BuildingManagerUpdateAttachment } from "@/lib/model";
 import { can, ROLE_LABEL } from "@/lib/model";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatDateTimeInTimeZone, isValidTimeZone, utcIsoToZonedLocalInput, zonedLocalInputToUtcIso } from "@/lib/format";
 
 export default function DashboardPage() {
   const me = useCurrentUser();
@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [scheduleOpen, setScheduleOpen] = useState<null | "committee" | "agm">(null);
   const [scheduleWhen, setScheduleWhen] = useState("");
   const [scheduleLocation, setScheduleLocation] = useState("");
+  const [scheduleTz, setScheduleTz] = useState("");
   const [scheduleError, setScheduleError] = useState<string | null>(null);
 
   const [bmTitle, setBmTitle] = useState("");
@@ -76,22 +77,15 @@ export default function DashboardPage() {
     return `${mb.toFixed(1)} MB`;
   };
 
-  const isoToLocalInput = (iso?: string) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    if (!Number.isFinite(d.getTime())) return "";
-    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
-    return local.toISOString().slice(0, 16);
-  };
-
   const openSchedule = (kind: "committee" | "agm") => {
     setScheduleError(null);
     setScheduleOpen(kind);
+    setScheduleTz(settings.buildingTimeZone);
     if (kind === "committee") {
-      setScheduleWhen(isoToLocalInput(settings.nextCommitteeMeeting?.when));
+      setScheduleWhen(utcIsoToZonedLocalInput(settings.nextCommitteeMeeting?.when, settings.buildingTimeZone));
       setScheduleLocation(settings.nextCommitteeMeeting?.locationNickname ?? "");
     } else {
-      setScheduleWhen(isoToLocalInput(settings.nextAgm?.when));
+      setScheduleWhen(utcIsoToZonedLocalInput(settings.nextAgm?.when, settings.buildingTimeZone));
       setScheduleLocation(settings.nextAgm?.locationNickname ?? "");
     }
   };
@@ -164,15 +158,22 @@ export default function DashboardPage() {
               <Button
                 onClick={() => {
                   if (!scheduleOpen) return;
-                  if (scheduleWhen.trim()) {
-                    const parsed = new Date(scheduleWhen);
-                    if (!Number.isFinite(parsed.getTime())) {
-                      setScheduleError("Invalid date/time.");
-                      return;
-                    }
+                  const tzToUse = (can(me.role, "ADMIN_SETTINGS") ? scheduleTz : settings.buildingTimeZone).trim();
+                  if (!isValidTimeZone(tzToUse)) {
+                    setScheduleError("Invalid building time zone (use an IANA name like Australia/Brisbane).");
+                    return;
                   }
-                  if (scheduleOpen === "committee") actions.admin.setNextCommitteeMeeting(scheduleWhen, scheduleLocation);
-                  else actions.admin.setNextAgm(scheduleWhen, scheduleLocation);
+                  if (can(me.role, "ADMIN_SETTINGS") && tzToUse !== settings.buildingTimeZone) {
+                    actions.admin.setBuildingTimeZone(tzToUse);
+                  }
+                  const whenIso = scheduleWhen.trim() ? zonedLocalInputToUtcIso(scheduleWhen, tzToUse) : null;
+                  if (scheduleWhen.trim() && !whenIso) {
+                    setScheduleError("Invalid date/time.");
+                    return;
+                  }
+                  const whenToSave = whenIso || "";
+                  if (scheduleOpen === "committee") actions.admin.setNextCommitteeMeeting(whenToSave, scheduleLocation);
+                  else actions.admin.setNextAgm(whenToSave, scheduleLocation);
                   setScheduleOpen(null);
                   setScheduleError(null);
                 }}
@@ -186,6 +187,18 @@ export default function DashboardPage() {
         <div className="space-y-3">
           <Field label="Date/time">
             <Input value={scheduleWhen} onChange={(e) => setScheduleWhen(e.target.value)} type="datetime-local" />
+          </Field>
+          <Field label="Building time zone">
+            <div className="space-y-1">
+              {can(me.role, "ADMIN_SETTINGS") ? (
+                <Input value={scheduleTz} onChange={(e) => setScheduleTz(e.target.value)} placeholder="Example: Australia/Brisbane" />
+              ) : (
+                <div className="text-sm font-semibold text-slate-900">{settings.buildingTimeZone}</div>
+              )}
+              <div className="text-xs text-slate-600">
+                Enter times in the building time zone. Everyone will see the time converted to their local time.
+              </div>
+            </div>
           </Field>
           <Field label="Location">
             <Input value={scheduleLocation} onChange={(e) => setScheduleLocation(e.target.value)} placeholder="Example: Meeting Room" />
@@ -299,6 +312,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardBody className="space-y-3">
             <div className="text-sm font-semibold text-slate-900">{formatDateTime(settings.nextCommitteeMeeting?.when)}</div>
+            <div className="text-xs text-slate-600">
+              Building time: {formatDateTimeInTimeZone(settings.nextCommitteeMeeting?.when, settings.buildingTimeZone)} ({settings.buildingTimeZone})
+            </div>
             {can(me.role, "SCHEDULE_EDIT") ? (
               <Button variant="secondary" size="sm" onClick={() => openSchedule("committee")}>
                 Edit
@@ -316,6 +332,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardBody className="space-y-3">
             <div className="text-sm font-semibold text-slate-900">{formatDateTime(settings.nextAgm?.when)}</div>
+            <div className="text-xs text-slate-600">
+              Building time: {formatDateTimeInTimeZone(settings.nextAgm?.when, settings.buildingTimeZone)} ({settings.buildingTimeZone})
+            </div>
             {can(me.role, "SCHEDULE_EDIT") ? (
               <Button variant="secondary" size="sm" onClick={() => openSchedule("agm")}>
                 Edit

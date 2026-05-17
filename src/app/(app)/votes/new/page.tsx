@@ -6,6 +6,7 @@ import { Button, Card, CardBody, CardHeader, CardSubtle, CardTitle, Checkbox, Di
 import { actions, useAppStore, useCurrentUser } from "@/lib/store";
 import { can, ROLE_LABEL } from "@/lib/model";
 import type { Role, VoteType } from "@/lib/model";
+import { isValidTimeZone, zonedLocalInputToUtcIso } from "@/lib/format";
 
 const TYPE_OPTIONS: Array<{ value: VoteType; label: string }> = [
   { value: "QUOTE", label: "Quote" },
@@ -132,7 +133,10 @@ export default function NewVotePage() {
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add context, supplier, impacts, and any constraints." />
           </Field>
 
-          <Field label="Deadline (optional)" hint="Not strictly enforced in this version (display only).">
+          <Field
+            label="Deadline (optional)"
+            hint={`Enter time in building time zone (${settings.buildingTimeZone}). Everyone will see it in their local time.`}
+          >
             <Input value={deadlineAt} onChange={(e) => setDeadlineAt(e.target.value)} type="datetime-local" />
           </Field>
 
@@ -296,12 +300,15 @@ export default function NewVotePage() {
                 const options = optionsText.split("\n").map((s) => s.trim()).filter(Boolean);
                 const quorum = minimumQuorum.trim() ? Number(minimumQuorum) : undefined;
                 const quote = quoteAmount.trim() ? Number(quoteAmount) : undefined;
+                if (!isValidTimeZone(settings.buildingTimeZone)) return;
+                const deadlineIso = deadlineAt ? zonedLocalInputToUtcIso(deadlineAt, settings.buildingTimeZone) : null;
+                if (deadlineAt && !deadlineIso) return;
 
                 const newVoteId = actions.votes.createVote({
                   type,
                   title,
                   description,
-                  deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : undefined,
+                  deadlineAt: deadlineIso || undefined,
                   locationId: locationId || undefined,
                   locationText: undefined,
                   attachments,
