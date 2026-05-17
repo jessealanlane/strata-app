@@ -22,7 +22,6 @@ export default function DashboardPage() {
   const [scheduleOpen, setScheduleOpen] = useState<null | "committee" | "agm">(null);
   const [scheduleWhen, setScheduleWhen] = useState("");
   const [scheduleLocation, setScheduleLocation] = useState("");
-  const [scheduleTz, setScheduleTz] = useState("");
   const [scheduleError, setScheduleError] = useState<string | null>(null);
 
   const [bmTitle, setBmTitle] = useState("");
@@ -80,7 +79,6 @@ export default function DashboardPage() {
   const openSchedule = (kind: "committee" | "agm") => {
     setScheduleError(null);
     setScheduleOpen(kind);
-    setScheduleTz(settings.buildingTimeZone);
     if (kind === "committee") {
       setScheduleWhen(utcIsoToZonedLocalInput(settings.nextCommitteeMeeting?.when, settings.buildingTimeZone));
       setScheduleLocation(settings.nextCommitteeMeeting?.locationNickname ?? "");
@@ -158,13 +156,10 @@ export default function DashboardPage() {
               <Button
                 onClick={() => {
                   if (!scheduleOpen) return;
-                  const tzToUse = (can(me.role, "ADMIN_SETTINGS") ? scheduleTz : settings.buildingTimeZone).trim();
+                  const tzToUse = settings.buildingTimeZone.trim();
                   if (!isValidTimeZone(tzToUse)) {
-                    setScheduleError("Invalid building time zone (use an IANA name like Australia/Brisbane).");
+                    setScheduleError("Building time zone is not set correctly. Update it in Settings.");
                     return;
-                  }
-                  if (can(me.role, "ADMIN_SETTINGS") && tzToUse !== settings.buildingTimeZone) {
-                    actions.admin.setBuildingTimeZone(tzToUse);
                   }
                   const whenIso = scheduleWhen.trim() ? zonedLocalInputToUtcIso(scheduleWhen, tzToUse) : null;
                   if (scheduleWhen.trim() && !whenIso) {
@@ -188,18 +183,9 @@ export default function DashboardPage() {
           <Field label="Date/time">
             <Input value={scheduleWhen} onChange={(e) => setScheduleWhen(e.target.value)} type="datetime-local" />
           </Field>
-          <Field label="Building time zone">
-            <div className="space-y-1">
-              {can(me.role, "ADMIN_SETTINGS") ? (
-                <Input value={scheduleTz} onChange={(e) => setScheduleTz(e.target.value)} placeholder="Example: Australia/Brisbane" />
-              ) : (
-                <div className="text-sm font-semibold text-slate-900">{settings.buildingTimeZone}</div>
-              )}
-              <div className="text-xs text-slate-600">
-                Enter times in the building time zone. Everyone will see the time converted to their local time.
-              </div>
-            </div>
-          </Field>
+          <div className="text-xs text-slate-600">
+            Times are set in the building time zone: <span className="font-semibold">{settings.buildingTimeZone}</span>
+          </div>
           <Field label="Location">
             <Input value={scheduleLocation} onChange={(e) => setScheduleLocation(e.target.value)} placeholder="Example: Meeting Room" />
           </Field>
