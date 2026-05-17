@@ -1,51 +1,74 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Card, CardBody, CardHeader, CardSubtle, CardTitle, Container } from "@/components/ui";
-import { actions } from "@/lib/store";
+import { Button, Card, CardBody, CardHeader, CardTitle, Container } from "@/components/ui";
+import { actions, useCurrentUser } from "@/lib/store";
 
-export default function MagicPage() {
+function MagicPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token") || "";
-  const [status, setStatus] = useState<"idle" | "ok" | "fail">("idle");
+  const token = searchParams.get("token");
+  const me = useCurrentUser();
+
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
 
   useEffect(() => {
     if (!token) {
-      setStatus("fail");
+      setStatus("error");
       return;
     }
-    const ok = actions.auth.consumeMagicLink(token);
-    setStatus(ok ? "ok" : "fail");
-    if (ok) router.replace("/");
+
+    // Try to login with magic token
+    const success = actions.auth.loginWithMagicToken(token);
+    
+    if (success) {
+      setStatus("success");
+      setTimeout(() => {
+        router.replace("/");
+      }, 1500);
+    } else {
+      setStatus("error");
+    }
   }, [token, router]);
 
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div>Verifying magic link...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50 to-slate-50">
       <Container>
         <div className="flex min-h-screen items-center justify-center py-10">
-          <div className="w-full max-w-md">
-            <Card>
-              <CardHeader>
-                <CardTitle>Magic link</CardTitle>
-                <CardSubtle>Mock sign-in (localStorage)</CardSubtle>
-              </CardHeader>
-              <CardBody className="space-y-3">
-                {status === "idle" ? <div className="text-sm text-slate-700">Signing you in…</div> : null}
-                {status === "ok" ? <div className="text-sm text-slate-700">Signed in. Redirecting…</div> : null}
-                {status === "fail" ? (
-                  <div className="space-y-3">
-                    <div className="text-sm text-rose-700">This magic link is invalid or expired.</div>
-                    <Button onClick={() => router.replace("/login")}>Back to login</Button>
-                  </div>
-                ) : null}
-              </CardBody>
-            </Card>
-          </div>
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>
+                {status === "success" ? "✅ Login Successful" : "❌ Invalid Link"}
+              </CardTitle>
+            </CardHeader>
+            <CardBody>
+              {status === "success" ? (
+                <div>Redirecting you now...</div>
+              ) : (
+                <div>Invalid or expired magic link.</div>
+              )}
+            </CardBody>
+          </Card>
         </div>
       </Container>
     </div>
   );
 }
 
+export default function Magic() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading magic link...</div>}>
+      <MagicPage />
+    </Suspense>
+  );
+}

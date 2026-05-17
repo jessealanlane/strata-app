@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";                    // ← Added this
 import { Button, Card, CardBody, CardHeader, CardSubtle, CardTitle, Container, Divider, Field, Input, Pill } from "@/components/ui";
 import { actions, useCurrentUser } from "@/lib/store";
 import type { Role } from "@/lib/model";
@@ -17,7 +18,7 @@ const QUICK_ROLES: Role[] = [
   "LOT_OWNER"
 ];
 
-export default function LoginPage() {
+function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
@@ -132,3 +133,10 @@ export default function LoginPage() {
   );
 }
 
+export default function Login() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading login...</div>}>
+      <LoginPage />
+    </Suspense>
+  );
+}
